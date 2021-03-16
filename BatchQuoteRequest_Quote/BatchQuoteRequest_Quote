@@ -1,0 +1,85 @@
+global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Database.Stateful{
+    
+
+    List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+    
+    List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
+    
+    Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
+    
+
+    global BatchQuoteRequest_Quote(List<Sales_Ops_Requests__c> requests){
+        this.requests = requests;
+        
+    }
+    
+    
+    global Database.QueryLocator start(Database.BatchableContext bc) {
+        
+        
+        String salesOpsRequests = 'SELECT ID, OPPORTUNITY__c, OPPORTUNITY__r.Pricebook2Id, Primary_Account__c FROM Sales_Ops_Requests__c WHERE ID in :requests';
+        
+        return Database.getQueryLocator(salesOpsRequests);
+    }
+    
+    
+    
+    global void execute(Database.BatchableContext bc, List<Sales_Ops_Requests__c> scope){
+        
+        system.debug('scope: '+ scope);
+        
+        
+        for(Sales_Ops_Requests__c request : scope){
+            
+            SBQQ__Quote__c quote = new SBQQ__Quote__c();
+            
+            quote.SBQQ__Opportunity2__c = request.OPPORTUNITY__c;
+            quote.SBQQ__Account__c = request.Primary_Account__c;
+            quote.Price_List__c = 'Direct';
+            quote.Sales_Ops_Request_ID__c = request.Id;
+            quote.SBQQ__PriceBook__c = request.OPPORTUNITY__r.Pricebook2Id;
+            quote.SBQQ__Type__c = 'New';
+            quote.SBQQ__Status__c = 'Draft';
+
+
+            
+
+                
+            
+            
+            quoteList.add(quote);
+            
+        }
+        
+        insert quoteList;
+        
+        
+        
+    }
+    
+    
+    global void finish(Database.BatchableContext bc){
+        
+        system.debug('quoteList: '+ quoteList);
+        
+        
+        for(SBQQ__Quote__c quote : quoteList){
+            
+            
+            quoteSalesOpsRequestMap.put(quote.Sales_Ops_Request_ID__c, quote.id);
+            
+            
+            
+            
+        }
+        
+        system.debug('quoteSalesOpsRequestMap: '+ quoteSalesOpsRequestMap);
+        
+
+        
+        Database.executeBatch(new BatchQuoteRequest_QuoteLines(requests, quoteSalesOpsRequestMap));
+        
+        
+    }
+    
+}
