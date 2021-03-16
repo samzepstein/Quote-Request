@@ -16,7 +16,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     global Database.QueryLocator start(Database.BatchableContext bc) {
         
         
-        String qLines = 'SELECT ID, Amount__c, Discount__c, Product__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c, Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c ' + 
+        String qLines = 'SELECT ID, Amount__c, Discount__c, Product__c, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c, Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c ' + 
             'FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
         
         return Database.getQueryLocator(qLines);
@@ -41,7 +41,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         system.debug('priceBookList: '+ priceBookList);
         
         system.debug('productList: '+ productList);
-
+        
         List<PricebookEntry> pbEntries = [SELECT ID, Product2Id, UnitPrice, Pricebook2Id 
                                           FROM PricebookEntry 
                                           WHERE Pricebook2Id in :priceBookList 
@@ -69,17 +69,35 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         
         for(QLine__c qLine : scope){
             
-            Decimal quantityDec = qLine.Amount__c / listPriceMap.get(qLine.Pricebook_and_Product__c);
+            
+            
+            
             
 
-            
-            system.debug('quantityDec: '+ quantityDec);
             
             
             SBQQ__QuoteLine__c qL = new SBQQ__QuoteLine__c();
             
-            //convert quantity to integer and round up
-            ql.SBQQ__Quantity__c = quantityDec.round(System.roundingMode.CEILING);
+            
+            
+            If(qLine.Product__r.Family == 'Pear Deck - Services'){
+                
+                ql.SBQQ__Quantity__c = qLine.Quantity__c;
+                
+            }
+            
+            Else{
+                
+                Decimal quantityDec = qLine.Amount__c / listPriceMap.get(qLine.Pricebook_and_Product__c);
+                
+                system.debug('quantityDec: '+ quantityDec);
+                
+                //convert quantity to integer and round up
+                ql.SBQQ__Quantity__c = quantityDec.round(System.roundingMode.CEILING);
+                
+                
+                
+            }
             
             ql.SBQQ__StartDate__c = qLine.Start_Date__c;
             ql.SBQQ__EndDate__c = qLine.End_Date__c;
@@ -87,7 +105,6 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
             ql.Deal_Type__c = 'New';
             ql.SBQQ__Quote__c = quoteSalesOpsRequestMap.get(qLine.Sales_Ops_Request__r.id);
             ql.Sales_Discount__c = qLine.Discount__c;
-            
             
             
             quoteLineList.add(ql);
@@ -100,7 +117,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         system.debug('quoteLineList: '+ quoteLineList);
         
         
-          
+        
         insert quoteLineList;
         
         SBQQ.TriggerControl.enable();
