@@ -1,0 +1,14 @@
+public class InvocableQuoteRequest {
+    
+    @InvocableMethod(label='InvocableQuoteRequest' description='create quote and quote lines from sales ops request ')
+    public static void quoteRequestInvocable(List<Sales_Ops_Requests__c> salesOpsRequests) {
+        
+        
+        
+        
+        
+        Database.executeBatch(new BatchQuoteRequest_Quote(salesOpsRequests));
+        
+    }
+
+}
