@@ -1,51 +1,40 @@
 @isTest
-public class Test_BatchQuoteRequest_QuoteLines {
+public class Test_BatchQuoteRequest_Quote {
+    
     
     @testSetup
     public static void setupTests(){
         
-        //Get the standard pricebook
+        
         ID stdPricebook = Test.getStandardPricebookId();
         
-        // Create a product with a product code
-        Product2 prod = new Product2();
-        prod.Name='Pear Deck Test'; 
-        prod.ProductCode ='GG-PDECK';
-        prod.Family = 'Pear Deck - Services';
-
+        Account testAccount = new Account(Name='Test Account');
         
-        INSERT prod;
+        insert testAccount;
         
-        Product2 prod2 = new Product2();
-        prod2.Name='Admin Implementation Service Test'; 
-        prod2.ProductCode ='AI-S';
-        prod2.Family = 'Pear Deck - Subscription';
-        prod.SBQQ__SubscriptionPricing__c = 'Fixed Price';
-        
-        
-        INSERT prod2;
+        //Opportunity
+        Opportunity oppty2 = new Opportunity();
+        oppty2.Name = 'Test oppty';
+        oppty2.Type = 'New';
+        oppty2.AccountId = testAccount.Id;
+        oppty2.StageName = 'Closing';
+        oppty2.CloseDate = System.today();
+        oppty2.Channel__c = 'Direct';
+        oppty2.Manually_Remove_From_Analysis__c = TRUE;
+        oppty2.Pricebook2Id = stdPricebook;
         
         
-        // Create Pricebook Entry on Standard Pricebook first
-        PricebookEntry standardPrice = new PricebookEntry();
-        standardPrice.Pricebook2Id = stdPricebook;
-        standardPrice.Product2Id = prod.id;
-        standardPrice.UnitPrice = 7.50;
-        standardPrice.IsActive = true;
-        standardPrice.UseStandardPrice = FALSE;
+        insert oppty2;
         
-        INSERT standardPrice;
+        Sales_Ops_Requests__c request = new Sales_Ops_Requests__c();
         
+        request.Name = 'Test Quote Req';
+        request.OPPORTUNITY__c = oppty2.id;
+        request.Primary_Account__c = testAccount.id;
+        request.Price_Book__c = stdPricebook;
+        request.Request_Subject__c = 'Test Quote Req';
         
-        // Create Pricebook Entry on Standard Pricebook first
-        PricebookEntry standardPrice2 = new PricebookEntry();
-        standardPrice2.Pricebook2Id = stdPricebook;
-        standardPrice2.Product2Id = prod2.id;
-        standardPrice2.UnitPrice = 10000;
-        standardPrice2.IsActive = true;
-        standardPrice2.UseStandardPrice = FALSE;
-        
-        INSERT standardPrice2;
+        insert request;
         
         
     }
@@ -55,6 +44,27 @@ public class Test_BatchQuoteRequest_QuoteLines {
     public static testMethod void BatchQuoteRequestTest(){
         
         
-    } 
+        List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+        
+        Sales_Ops_Requests__c request = [SELECT ID, OPPORTUNITY__c, Primary_Account__c, OPPORTUNITY__r.Pricebook2Id FROM Sales_Ops_Requests__c WHERE Name = 'Test Quote Req' LIMIT 1];
+        
+        requests.add(request);
+        
+        system.debug('requests: '+ requests);
+        
+        
+        If(requests != null){
+            
+            Database.executeBatch(new BatchQuoteRequest_Quote(requests));
+            
+        }
+        
+        
+        
+        
+        
+    }
+    
+    
     
 }
