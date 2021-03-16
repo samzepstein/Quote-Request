@@ -1,0 +1,27 @@
+@isTest
+public class Test_BatchQuoteRequest_Quote {
+    
+    
+    @testSetup
+    public static void setupTests(){
+        
+        Sales_Ops_Requests__c request = new Sales_Ops_Requests__c();
+        
+        request.Access_Type__c = ''
+        
+        
+
+        
+        
+    }
+    
+    
+    
+    public static testMethod void BatchQuoteRequestTest(){
+        
+        
+    }
+    
+    
+    
+}
