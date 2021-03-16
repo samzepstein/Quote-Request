@@ -1,0 +1,117 @@
+global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject>, Database.Stateful{
+    
+    
+    List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+    
+    Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
+    
+    
+    global BatchQuoteRequest_QuoteLines(List<Sales_Ops_Requests__c> requests, Map<String,Id> quoteSalesOpsRequestMap){
+        this.requests = requests;
+        this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
+        
+    }
+    
+    
+    global Database.QueryLocator start(Database.BatchableContext bc) {
+        
+        
+        String qLines = 'SELECT ID, Amount__c, Discount__c, Product__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c, Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c ' + 
+            'FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
+        
+        return Database.getQueryLocator(qLines);
+    }
+    
+    
+    
+    global void execute(Database.BatchableContext bc, List<QLine__c> scope){
+        
+        List<ID> priceBookList = new List<ID>();
+        
+        List<ID> productList = new List<ID>();
+        
+        for(QLine__c qoLine : scope){
+            
+            priceBookList.add(qoLine.Sales_Ops_Request__r.Price_Book__c);
+            
+            productList.add(qoLine.Product__c);
+        }
+        
+        
+        system.debug('priceBookList: '+ priceBookList);
+        
+        system.debug('productList: '+ productList);
+
+        List<PricebookEntry> pbEntries = [SELECT ID, Product2Id, UnitPrice, Pricebook2Id 
+                                          FROM PricebookEntry 
+                                          WHERE Pricebook2Id in :priceBookList 
+                                          AND Product2Id in :productList];
+        
+        
+        Map<String,Decimal> listPriceMap = new Map<String,Decimal>();
+        
+        for(PricebookEntry pbEntry : pbEntries){
+            
+            listPriceMap.put(pbEntry.Pricebook2Id + ' ' + pbEntry.Product2Id, pbEntry.UnitPrice);
+            
+        }
+        
+        
+        system.debug('listPriceMap: '+ listPriceMap);
+        
+        system.debug('pbEntries: '+ pbEntries);
+        
+        system.debug('QLscope: '+ scope);
+        
+        List<SBQQ__QuoteLine__c> quoteLineList = new List<SBQQ__QuoteLine__c>();
+        
+        SBQQ.TriggerControl.disable();
+        
+        for(QLine__c qLine : scope){
+            
+            Decimal quantityDec = qLine.Amount__c / listPriceMap.get(qLine.Pricebook_and_Product__c);
+            
+
+            
+            system.debug('quantityDec: '+ quantityDec);
+            
+            
+            SBQQ__QuoteLine__c qL = new SBQQ__QuoteLine__c();
+            
+            //convert quantity to integer and round up
+            ql.SBQQ__Quantity__c = quantityDec.round(System.roundingMode.CEILING);
+            
+            ql.SBQQ__StartDate__c = qLine.Start_Date__c;
+            ql.SBQQ__EndDate__c = qLine.End_Date__c;
+            ql.SBQQ__Product__c = qLine.Product__c;
+            ql.Deal_Type__c = 'New';
+            ql.SBQQ__Quote__c = quoteSalesOpsRequestMap.get(qLine.Sales_Ops_Request__r.id);
+            ql.Sales_Discount__c = qLine.Discount__c;
+            
+            
+            
+            quoteLineList.add(ql);
+            
+        }
+        
+        
+        system.debug('quoteSalesOpsRequestMap: '+ quoteSalesOpsRequestMap);
+        
+        system.debug('quoteLineList: '+ quoteLineList);
+        
+        
+          
+        insert quoteLineList;
+        
+        SBQQ.TriggerControl.enable();
+        
+        
+    }
+    
+    
+    global void finish(Database.BatchableContext bc){
+        
+        
+    }
+    
+}
