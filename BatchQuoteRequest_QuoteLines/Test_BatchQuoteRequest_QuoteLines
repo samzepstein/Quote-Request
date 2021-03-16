@@ -1,0 +1,60 @@
+@isTest
+public class Test_BatchQuoteRequest_QuoteLines {
+    
+    @testSetup
+    public static void setupTests(){
+        
+        //Get the standard pricebook
+        ID stdPricebook = Test.getStandardPricebookId();
+        
+        // Create a product with a product code
+        Product2 prod = new Product2();
+        prod.Name='Pear Deck Test'; 
+        prod.ProductCode ='GG-PDECK';
+        prod.Family = 'Pear Deck - Services';
+
+        
+        INSERT prod;
+        
+        Product2 prod2 = new Product2();
+        prod2.Name='Admin Implementation Service Test'; 
+        prod2.ProductCode ='AI-S';
+        prod2.Family = 'Pear Deck - Subscription';
+        prod.SBQQ__SubscriptionPricing__c = 'Fixed Price';
+        
+        
+        INSERT prod2;
+        
+        
+        // Create Pricebook Entry on Standard Pricebook first
+        PricebookEntry standardPrice = new PricebookEntry();
+        standardPrice.Pricebook2Id = stdPricebook;
+        standardPrice.Product2Id = prod.id;
+        standardPrice.UnitPrice = 7.50;
+        standardPrice.IsActive = true;
+        standardPrice.UseStandardPrice = FALSE;
+        
+        INSERT standardPrice;
+        
+        
+        // Create Pricebook Entry on Standard Pricebook first
+        PricebookEntry standardPrice2 = new PricebookEntry();
+        standardPrice2.Pricebook2Id = stdPricebook;
+        standardPrice2.Product2Id = prod2.id;
+        standardPrice2.UnitPrice = 10000;
+        standardPrice2.IsActive = true;
+        standardPrice2.UseStandardPrice = FALSE;
+        
+        INSERT standardPrice2;
+        
+        
+    }
+    
+    
+    
+    public static testMethod void BatchQuoteRequestTest(){
+        
+        
+    } 
+    
+}
