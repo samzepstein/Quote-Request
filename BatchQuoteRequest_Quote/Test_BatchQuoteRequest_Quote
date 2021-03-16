@@ -5,12 +5,36 @@ public class Test_BatchQuoteRequest_Quote {
     @testSetup
     public static void setupTests(){
         
+        
+        ID stdPricebook = Test.getStandardPricebookId();
+        
+        Account testAccount = new Account(Name='Test Account');
+        
+        insert testAccount;
+        
+        //Opportunity
+        Opportunity oppty2 = new Opportunity();
+        oppty2.Name = 'Test oppty';
+        oppty2.Type = 'New';
+        oppty2.AccountId = testAccount.Id;
+        oppty2.StageName = 'Closing';
+        oppty2.CloseDate = System.today();
+        oppty2.Channel__c = 'Direct';
+        oppty2.Manually_Remove_From_Analysis__c = TRUE;
+        oppty2.Pricebook2Id = stdPricebook;
+        
+        
+        insert oppty2;
+        
         Sales_Ops_Requests__c request = new Sales_Ops_Requests__c();
         
-        request.Access_Type__c = ''
+        request.Name = 'Test Quote Req';
+        request.OPPORTUNITY__c = oppty2.id;
+        request.Primary_Account__c = testAccount.id;
+        request.Price_Book__c = stdPricebook;
+        request.Request_Subject__c = 'Test Quote Req';
         
-        
-
+        insert request;
         
         
     }
@@ -18,6 +42,25 @@ public class Test_BatchQuoteRequest_Quote {
     
     
     public static testMethod void BatchQuoteRequestTest(){
+        
+        
+        List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+        
+        Sales_Ops_Requests__c request = [SELECT ID, OPPORTUNITY__c, Primary_Account__c, OPPORTUNITY__r.Pricebook2Id FROM Sales_Ops_Requests__c WHERE Name = 'Test Quote Req' LIMIT 1];
+        
+        requests.add(request);
+        
+        system.debug('requests: '+ requests);
+        
+        
+        If(requests != null){
+            
+            Database.executeBatch(new BatchQuoteRequest_Quote(requests));
+            
+        }
+        
+        
+        
         
         
     }
