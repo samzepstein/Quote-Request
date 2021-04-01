@@ -6,9 +6,13 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
     
     
-    global BatchQuoteRequest_QuoteLines(List<Sales_Ops_Requests__c> requests, Map<String,Id> quoteSalesOpsRequestMap){
+    List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
+    
+    
+    global BatchQuoteRequest_QuoteLines(List<Sales_Ops_Requests__c> requests, Map<String,Id> quoteSalesOpsRequestMap, List<SBQQ__Quote__c> quoteList){
         this.requests = requests;
         this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
+        this.quoteList = quoteList;
         
     }
     
@@ -17,8 +21,8 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     global Database.QueryLocator start(Database.BatchableContext bc) {
         
         
-        String qLines = 'SELECT ID, Amount__c, Discount_Schedule__c, Discount__c, Product__c, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c, Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c ' + 
-            'FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
+        String qLines = 'SELECT ID, Amount__c, Discount_Schedule__c, Discount__c, Product__c, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c,' +
+            'Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
         
         return Database.getQueryLocator(qLines);
     }
@@ -224,6 +228,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                     
                 }
                 
+
                 
                 ql.SBQQ__StartDate__c = qLine.Start_Date__c;
                 ql.SBQQ__EndDate__c = qLine.End_Date__c;
@@ -264,6 +269,9 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     global void finish(Database.BatchableContext bc){
         
         system.debug('quote lines created!');
+        
+        Database.executeBatch(new BatchQuoteRequest_QuoteDocument(quoteSalesOpsRequestMap));
+        
         
         
     }
