@@ -17,7 +17,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     global Database.QueryLocator start(Database.BatchableContext bc) {
         
         
-        String qLines = 'SELECT ID, Amount__c, Discount__c, Product__c, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c, Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c ' + 
+        String qLines = 'SELECT ID, Amount__c, Discount_Schedule__c, Discount__c, Product__c, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c, Sales_Ops_Request__r.id, Sales_Ops_Request__r.Price_Book__c ' + 
             'FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
         
         return Database.getQueryLocator(qLines);
@@ -38,7 +38,13 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         //convert quantity to integer and round up
         Decimal quantityDec = (qLine.Amount__c / listPriceMap.get(qLine.Pricebook_and_Product__c)).round(System.roundingMode.CEILING);
         
+        Decimal unitPrice = listPriceMap.get(qLine.Pricebook_and_Product__c);
+        
         system.debug('quantityDec: '+ quantityDec);
+                                             
+                                             
+        system.debug('unitPrice: '+ unitPrice);                               
+                                             
         
         
         for(Id discountSchedule : discountScheduleTierMap.keySet()){
@@ -60,8 +66,14 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                 if((quantityDec >= dt.SBQQ__LowerBound__c && quantityDec <= dt.SBQQ__UpperBound__c) || (quantityDec >= dt.SBQQ__LowerBound__c && dt.SBQQ__UpperBound__c == NULL)){
                     
                     //qlDiscMap.put(qLine.id, dt);
+                    //
                     
-                    volumeDisc = dt.SBQQ__Discount__c;
+                    system.debug('dt that meets criteria: '+ dt);
+                    
+                    volumeDisc = dt.SBQQ__Discount__c / 100;
+                    
+                    break;
+                    
                     
                     
                 }
@@ -71,10 +83,14 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
             
         }
         
-        Decimal discAmount = quantityDec * volumeDisc;
+        Decimal discAmount = unitPrice * volumeDisc;
         
-        quantityDec = (quantityDec + discAmount).round(System.roundingMode.CEILING);
+        Decimal newUnitPrice = unitPrice + discAmount;
         
+        quantityDec = (qLine.Amount__c / newUnitPrice).round(System.roundingMode.CEILING);
+        
+        
+        system.debug('newUnitPrice: '+ newUnitPrice);
         system.debug('volumeDisc: '+ volumeDisc);
         system.debug('quantityDec: '+ quantityDec);
         
