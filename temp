@@ -72,6 +72,8 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                     
                     volumeDisc = dt.SBQQ__Discount__c / 100;
                     
+                    volumeDisc.setScale(2);
+                    
                     break;
                     
                     
@@ -85,11 +87,13 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         
         Decimal discAmount = unitPrice * volumeDisc;
         
-        Decimal newUnitPrice = unitPrice + discAmount;
+        Decimal newUnitPrice = unitPrice - discAmount;
+        
+        newUnitPrice.setScale(2);
         
         quantityDec = (qLine.Amount__c / newUnitPrice).round(System.roundingMode.CEILING);
         
-        
+        system.debug('discAmount: '+ discAmount);
         system.debug('newUnitPrice: '+ newUnitPrice);
         system.debug('volumeDisc: '+ volumeDisc);
         system.debug('quantityDec: '+ quantityDec);
