@@ -1,0 +1,117 @@
+global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObject>, Database.Stateful{
+    
+    
+    
+    List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+    
+    Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
+    
+    
+    
+    
+    global BatchQuoteRequest_QuoteDocument(Map<String,Id> quoteSalesOpsRequestMap, List<Sales_Ops_Requests__c> requests){
+        
+        this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
+        this.requests = requests;
+        
+    }
+    
+    
+    
+    global Database.QueryLocator start(Database.BatchableContext bc) {
+        
+        List<ID> requestIds = new List<ID>();
+        
+        for(Sales_Ops_Requests__c request : requests){
+            
+            requestIds.add(request.id);
+        }
+        
+        
+        String salesOpsRequests = 'SELECT ID, Quote_Template_Name__c, OPPORTUNITY__c FROM Sales_Ops_Requests__c WHERE Id in :requestIds';
+        
+        return Database.getQueryLocator(salesOpsRequests);
+    }
+    
+    
+    
+    global void execute(Database.BatchableContext bc, List<Sales_Ops_Requests__c> scope){
+        
+
+        List<SBQQ__QuoteDocument__c> quoteDocList = new List<SBQQ__QuoteDocument__c>();
+        
+        
+        try{
+            
+            system.debug('scope: '+ scope);
+            
+            for(Sales_Ops_Requests__c request : scope){
+                
+               
+                
+                SBQQ__QuoteDocument__c quoteDoc = new SBQQ__QuoteDocument__c();
+                
+                quoteDoc.SBQQ__Quote__c = quoteSalesOpsRequestMap.get(request.id);
+                
+                quoteDoc.SBQQ__Opportunity__c = request.OPPORTUNITY__c;
+                
+                quoteDoc.SBQQ__QuoteTemplate__c = request.Quote_Template_Name__c;
+                
+                quoteDoc.SBQQ__OutputFormat__c = 'pdf';
+                
+                quoteDoc.Name = request.Quote_Name__c;
+                
+                system.debug('request.Quote_Name__c: '+ request.Quote_Name__c);
+                
+                
+                quoteDocList.add(quoteDoc);
+                   
+                
+                
+                
+            }
+            
+            insert quoteDocList;
+            
+        }
+        
+        catch(Exception e){
+            String sub3 = 'Exception Thrown - Failed to Create Quote Document';
+            String body3 = 'Exception Thrown - Failed to Create Quote Document: ' + e.getMessage() + '\n Stack Trace: ' + e.getStackTraceString();
+            errorHandler(sub3,body3);
+            
+        }
+        
+        
+        
+    }
+    
+    
+    
+    
+    
+    
+    
+    global void finish(Database.BatchableContext bc){
+        
+        system.debug('yay');
+        
+
+        
+        
+    }
+    
+    public static void errorHandler(String sub, String body){
+        
+        List<String> errorEmailList = new List<String>{'salesops@goguardian.com'};
+            Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        
+        msg.setSubject(sub);
+        msg.setToAddresses(errorEmailList);
+        msg.setPlainTextBody(body);
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage> { msg }, false);
+        
+    }
+    
+    
+}
