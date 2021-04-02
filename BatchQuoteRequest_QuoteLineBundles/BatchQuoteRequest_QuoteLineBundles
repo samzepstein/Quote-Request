@@ -1,0 +1,163 @@
+global class BatchQuoteRequest_QuoteLineBundles implements Database.Batchable<SObject>, Database.Stateful {
+    
+    
+    List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+    
+    
+    List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
+    
+    List<SBQQ__QuoteLine__c> suiteQuoteLines = new List<SBQQ__QuoteLine__c>();
+    
+    Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
+    
+    Map<Id, List<SBQQ__ProductOption__c>> productIdOptionMap = new Map<Id, List<SBQQ__ProductOption__c>>();
+    
+    
+    
+    global BatchQuoteRequest_QuoteLineBundles(List<Sales_Ops_Requests__c> request, List<SBQQ__Quote__c> quoteList, List<SBQQ__QuoteLine__c> suiteQuoteLines, Map<String,Id> quoteSalesOpsRequestMap){
+        this.requests = requests;
+        this.quoteList = quoteList;
+        this.suiteQuoteLines = suiteQuoteLines;
+        this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
+        List<SBQQ__ProductOption__c> productOptionList = [Select Id,SBQQ__ConfiguredSKU__c, SBQQ__OptionalSKU__c, SBQQ__Discount__c
+                                                          FROM SBQQ__ProductOption__c WHERE SBQQ__ConfiguredSKU__r.Name LIKE '%Suite%']; 
+        
+        system.debug('productOptionList: ' + productOptionList);
+        
+        system.debug('suiteQuoteLines: ' + suiteQuoteLines);
+        
+        for (SBQQ__ProductOption__c productOption : productOptionList){   
+            
+            Id configuredSkuId = productOption.SBQQ__ConfiguredSKU__c;
+            
+            List<SBQQ__ProductOption__c> productList = this.productIdOptionMap.containsKey(configuredSkuId) ? this.productIdOptionMap.get(configuredSkuId) : new List<SBQQ__ProductOption__c>();
+            
+            productList.add(productOption);
+            
+            this.productIdOptionMap.put(configuredSkuId, productList);
+            
+            
+            
+        }
+        
+        system.debug('productIdOptionMap: ' + productIdOptionMap);
+        
+    }
+    
+    
+    global List<SBQQ__QuoteLine__c> start(Database.BatchableContext bc) {
+        
+        return suiteQuoteLines;
+        
+        
+    }
+    
+    
+    
+    global void execute(Database.BatchableContext bc, List<SBQQ__QuoteLine__c> scope){
+        
+        try{
+            
+            List<SBQQ__QuoteLine__c> quoteLineList = new List<SBQQ__QuoteLine__c>();
+            
+            SBQQ.TriggerControl.disable();
+            
+            
+            for (SBQQ__QuoteLine__c bundleQuoteLine : scope){    
+                
+                //essentially configured SKU on Product Option
+                Id bundleProductId = bundleQuoteline.SBQQ__Product__c;
+                
+                //bundle quote line id
+                Id bundleQuoteLineId = bundleQuoteLine.Id;
+                
+                // get list of product options from product Id option map. Iterate through  each product option and adding a quote line for each one
+                for (SBQQ__ProductOption__c po : productIdOptionMap.get(bundleProductId)){       
+                    
+                    
+                    SBQQ__QuoteLine__c quoteLine = new SBQQ__QuoteLine__c();
+                    
+                    quoteLine.SBQQ__RequiredBy__c = bundleQuoteLineId;
+                    quoteLine.SBQQ__ProductOption__c = po.Id;
+                    quoteLine.SBQQ__Product__c = po.SBQQ__OptionalSKU__c;
+                    quoteLine.SBQQ__OptionDiscount__c = po.SBQQ__Discount__c;
+                    quoteLine.SBQQ__StartDate__c = bundleQuoteLine.SBQQ__StartDate__c;
+                    quoteLine.SBQQ__EndDate__c = bundleQuoteLine.SBQQ__EndDate__c;
+                    quoteLine.Sales_Discount__c = bundleQuoteLine.Sales_Discount__c;
+                    quoteLine.SBQQ__Quote__c = bundleQuoteLine.SBQQ__Quote__c;
+                    quoteLine.Deal_Type__c = bundleQuoteLine.Deal_Type__c;
+                    
+                    quoteLineList.add(quoteLine);   
+                    
+                }
+                
+                
+                
+            }
+            
+            system.debug('quoteLineList: ' + quoteLineList);
+            
+            insert quoteLineList;
+            
+            SBQQ.TriggerControl.enable();
+            
+            
+            
+            
+        }
+        
+        catch(Exception e){
+            String sub3 = 'Exception Thrown - Fail to Create Quote Line Bundles';
+            String body3 = 'Exception Thrown - Fail to Create Quote Line Bundles: ' + e.getMessage() + '\n Stack Trace: ' + e.getStackTraceString();
+            errorHandler(sub3,body3);
+            
+        }
+        
+        
+        
+    }
+    
+    
+    
+    
+    
+    
+    
+    global void finish(Database.BatchableContext bc){
+        
+        system.debug('quoteLinebundles created!');
+        
+        
+        system.debug('quoteList: '+quoteList);
+        
+        for(SBQQ__Quote__c quote : quoteList){
+            
+            quote.Recalculate__c = TRUE;
+            
+        }
+        
+        update quoteList;
+        
+        
+        
+        Database.executeBatch(new BatchQuoteRequest_QuoteDocument(quoteSalesOpsRequestMap, requests));
+        
+        
+        
+        
+    }
+    
+    public static void errorHandler(String sub, String body){
+        
+        List<String> errorEmailList = new List<String>{'salesops@goguardian.com'};
+            Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        
+        msg.setSubject(sub);
+        msg.setToAddresses(errorEmailList);
+        msg.setPlainTextBody(body);
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage> { msg }, false);
+        
+    }
+    
+    
+}
