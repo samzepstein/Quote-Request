@@ -27,8 +27,10 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
             requestIds.add(request.id);
         }
         
+        system.debug('requestIds: '+ requestIds);
         
-        String salesOpsRequests = 'SELECT ID, Quote_Template_Name__c, OPPORTUNITY__c FROM Sales_Ops_Requests__c WHERE Id in :requestIds';
+        
+        String salesOpsRequests = 'SELECT ID, Quote_Name__c, Quote_Template_Name__c, OPPORTUNITY__c FROM Sales_Ops_Requests__c WHERE Id in :requestIds';
         
         return Database.getQueryLocator(salesOpsRequests);
     }
@@ -37,8 +39,12 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
     
     global void execute(Database.BatchableContext bc, List<Sales_Ops_Requests__c> scope){
         
-
+        
         List<SBQQ__QuoteDocument__c> quoteDocList = new List<SBQQ__QuoteDocument__c>();
+        
+        
+        List<QuoteDocGenerator.QuoteDocRequest> quoteDocRequestList = new List<QuoteDocGenerator.QuoteDocRequest>();
+        
         
         
         try{
@@ -47,31 +53,25 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
             
             for(Sales_Ops_Requests__c request : scope){
                 
-               
+                QuoteDocGenerator.QuoteDocRequest req = new QuoteDocGenerator.QuoteDocRequest();
                 
-                SBQQ__QuoteDocument__c quoteDoc = new SBQQ__QuoteDocument__c();
+                req.quoteId = quoteSalesOpsRequestMap.get(request.id);
                 
-                quoteDoc.SBQQ__Quote__c = quoteSalesOpsRequestMap.get(request.id);
+                req.templateName = request.Quote_Template_Name__c;
                 
-                quoteDoc.SBQQ__Opportunity__c = request.OPPORTUNITY__c;
+                req.quoteName = request.Quote_Name__c;
                 
-                quoteDoc.SBQQ__QuoteTemplate__c = request.Quote_Template_Name__c;
+                quoteDocRequestList.add(req);
                 
-                quoteDoc.SBQQ__OutputFormat__c = 'pdf';
-                
-                quoteDoc.Name = request.Quote_Name__c;
-                
+                system.debug('quoteSalesOpsRequestMap.get(request.id): '+ quoteSalesOpsRequestMap.get(request.id));
+                system.debug('request.Quote_Template_Name__c: '+ request.Quote_Template_Name__c);
                 system.debug('request.Quote_Name__c: '+ request.Quote_Name__c);
-                
-                
-                quoteDocList.add(quoteDoc);
-                   
                 
                 
                 
             }
-            
-            insert quoteDocList;
+           
+            QuoteDocGenerator.createNew(quoteDocRequestList);
             
         }
         
@@ -96,7 +96,7 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
         
         system.debug('yay');
         
-
+        
         
         
     }
