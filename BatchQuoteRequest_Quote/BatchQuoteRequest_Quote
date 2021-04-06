@@ -1,13 +1,15 @@
 global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Database.Stateful{
     
-
+    
     List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+    
+    //List<Sales_Ops_Requests__c> requestsForUpdate = new List<Sales_Ops_Requests__c>();
     
     List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
     
     Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
     
-
+    
     global BatchQuoteRequest_Quote(List<Sales_Ops_Requests__c> requests){
         this.requests = requests;
         
@@ -17,7 +19,7 @@ global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Dat
     global Database.QueryLocator start(Database.BatchableContext bc) {
         
         
-        String salesOpsRequests = 'SELECT ID, OPPORTUNITY__c, OPPORTUNITY__r.Pricebook2Id, Primary_Account__c FROM Sales_Ops_Requests__c WHERE ID in :requests';
+        String salesOpsRequests = 'SELECT ID, OPPORTUNITY__c, Quote_Name__c, OPPORTUNITY__r.Pricebook2Id, Primary_Account__c, Opportunity_Type__c FROM Sales_Ops_Requests__c WHERE ID in :requests';
         
         return Database.getQueryLocator(salesOpsRequests);
     }
@@ -26,36 +28,59 @@ global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Dat
     
     global void execute(Database.BatchableContext bc, List<Sales_Ops_Requests__c> scope){
         
-        system.debug('scope: '+ scope);
-        
-        
-        for(Sales_Ops_Requests__c request : scope){
+        try{
             
-            SBQQ__Quote__c quote = new SBQQ__Quote__c();
+            system.debug('scope: '+ scope);
             
-            quote.SBQQ__Opportunity2__c = request.OPPORTUNITY__c;
-            quote.SBQQ__Account__c = request.Primary_Account__c;
-            quote.Price_List__c = 'Direct';
-            quote.Sales_Ops_Request_ID__c = request.Id;
-            quote.SBQQ__PriceBook__c = request.OPPORTUNITY__r.Pricebook2Id;
-            quote.SBQQ__Type__c = 'New';
-            quote.SBQQ__Status__c = 'Draft';
-
-
             
-
+            for(Sales_Ops_Requests__c request : scope){
                 
+                SBQQ__Quote__c quote = new SBQQ__Quote__c();
+                
+                quote.SBQQ__Opportunity2__c = request.OPPORTUNITY__c;
+                quote.SBQQ__Account__c = request.Primary_Account__c;
+                quote.Price_List__c = 'Direct';
+                quote.Sales_Ops_Request_ID__c = request.Id;
+                quote.SBQQ__PriceBook__c = request.OPPORTUNITY__r.Pricebook2Id;
+                quote.SBQQ__Type__c = 'New';
+                quote.SBQQ__Status__c = 'Draft';
+                quote.Quote_Name__c = request.Quote_Name__c;
+                
+                If(request.Opportunity_Type__c == 'Renewal'){
+                    
+                    quote.Escalation__c = 7;
+                    
+                }
+                
+                
+                
+                
+                
+                
+                
+                quoteList.add(quote);
+                
+            }
             
-            
-            quoteList.add(quote);
+            insert quoteList;
             
         }
         
-        insert quoteList;
+        catch(Exception e){
+            String sub3 = 'Exception Thrown - Fail to Create Quote';
+            String body3 = 'Exception Thrown - Fail to Create Quote: ' + e.getMessage() + '\n Stack Trace: ' + e.getStackTraceString();
+            errorHandler(sub3,body3);
+            
+        }
         
         
         
     }
+    
+    
+    
+    
+    
     
     
     global void finish(Database.BatchableContext bc){
@@ -75,11 +100,24 @@ global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Dat
         
         system.debug('quoteSalesOpsRequestMap: '+ quoteSalesOpsRequestMap);
         
-
         
-        Database.executeBatch(new BatchQuoteRequest_QuoteLines(requests, quoteSalesOpsRequestMap));
+        
+        Database.executeBatch(new BatchQuoteRequest_QuoteLines(requests, quoteSalesOpsRequestMap, quoteList));
         
         
     }
+    
+    public static void errorHandler(String sub, String body){
+        
+        List<String> errorEmailList = new List<String>{'salesops@goguardian.com'};
+            Messaging.SingleEmailMessage msg = new Messaging.SingleEmailMessage();
+        
+        msg.setSubject(sub);
+        msg.setToAddresses(errorEmailList);
+        msg.setPlainTextBody(body);
+        Messaging.sendEmail(new List<Messaging.SingleEmailMessage> { msg }, false);
+        
+    }
+    
     
 }
