@@ -19,28 +19,8 @@ global class BatchQuoteRequest_QuoteLineBundles implements Database.Batchable<SO
         this.quoteList = quoteList;
         this.suiteQuoteLines = suiteQuoteLines;
         this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
-        List<SBQQ__ProductOption__c> productOptionList = [Select Id,SBQQ__ConfiguredSKU__c, SBQQ__OptionalSKU__c, SBQQ__Discount__c
-                                                          FROM SBQQ__ProductOption__c WHERE SBQQ__ConfiguredSKU__r.Name LIKE '%Suite%']; 
         
-        system.debug('productOptionList: ' + productOptionList);
         
-        system.debug('suiteQuoteLines: ' + suiteQuoteLines);
-        
-        for (SBQQ__ProductOption__c productOption : productOptionList){   
-            
-            Id configuredSkuId = productOption.SBQQ__ConfiguredSKU__c;
-            
-            List<SBQQ__ProductOption__c> productList = this.productIdOptionMap.containsKey(configuredSkuId) ? this.productIdOptionMap.get(configuredSkuId) : new List<SBQQ__ProductOption__c>();
-            
-            productList.add(productOption);
-            
-            this.productIdOptionMap.put(configuredSkuId, productList);
-            
-            
-            
-        }
-        
-        system.debug('productIdOptionMap: ' + productIdOptionMap);
         
     }
     
@@ -60,8 +40,45 @@ global class BatchQuoteRequest_QuoteLineBundles implements Database.Batchable<SO
             
             List<SBQQ__QuoteLine__c> quoteLineList = new List<SBQQ__QuoteLine__c>();
             
+            List<Id> suiteLineProductIds = new List<Id>();
+            
+            for(SBQQ__QuoteLine__c ql : suiteQuoteLines){
+                
+                suiteLineProductIds.add(ql.SBQQ__Product__c);
+                
+                
+            }
+            
+            system.debug('suiteLineProductIds: ' + suiteLineProductIds);
+
+            
+            List<SBQQ__ProductOption__c> productOptionList = [Select Id,SBQQ__ConfiguredSKU__c, SBQQ__OptionalSKU__c, SBQQ__Discount__c, SBQQ__Required__c
+                                                              FROM SBQQ__ProductOption__c WHERE SBQQ__ConfiguredSKU__c in :suiteLineProductIds
+                                                              AND SBQQ__Required__c = TRUE]; 
+            
+            system.debug('productOptionList: ' + productOptionList);
+            
+            system.debug('suiteQuoteLines: ' + suiteQuoteLines);
+            
+            for (SBQQ__ProductOption__c productOption : productOptionList){   
+                
+                Id configuredSkuId = productOption.SBQQ__ConfiguredSKU__c;
+                
+                List<SBQQ__ProductOption__c> productList = this.productIdOptionMap.containsKey(configuredSkuId) ? this.productIdOptionMap.get(configuredSkuId) : new List<SBQQ__ProductOption__c>();
+                
+                productList.add(productOption);
+                
+                productIdOptionMap.put(configuredSkuId, productList);
+                
+                
+                
+            }
+            
+            system.debug('productIdOptionMap: ' + productIdOptionMap);
+            
             SBQQ.TriggerControl.disable();
             
+            system.debug('scope: '+scope);
             
             for (SBQQ__QuoteLine__c bundleQuoteLine : scope){    
                 
@@ -71,8 +88,14 @@ global class BatchQuoteRequest_QuoteLineBundles implements Database.Batchable<SO
                 //bundle quote line id
                 Id bundleQuoteLineId = bundleQuoteLine.Id;
                 
+                
+                system.debug('bundleProductId: '+bundleProductId);
+                
+                system.debug('bundleQuoteLineId: '+bundleQuoteLineId);
+                
                 // get list of product options from product Id option map. Iterate through  each product option and adding a quote line for each one
-                for (SBQQ__ProductOption__c po : productIdOptionMap.get(bundleProductId)){       
+                for (SBQQ__ProductOption__c po : productIdOptionMap.get(bundleProductId)){    
+                    
                     
                     
                     SBQQ__QuoteLine__c quoteLine = new SBQQ__QuoteLine__c();
