@@ -1,14 +1,35 @@
 public class InvocableQuoteRequest {
     
+    
+    
+    public class quoteRequestInvoke{
+        
+        
+        @InvocableVariable(label='Sales Ops Request')
+        public Sales_Ops_Requests__c salesOpsrequest;
+        
+        
+    }
+    
+    
+    
+    
     @InvocableMethod(label='InvocableQuoteRequest' description='create quote and quote lines from sales ops request ')
-    public static void quoteRequestInvocable(List<Sales_Ops_Requests__c> salesOpsRequests) {
+    public static void quoteRequestInvocable(List<quoteRequestInvoke> quoteRequests) {
         
+        List<Sales_Ops_Requests__c> salesOpsRequests = new List<Sales_Ops_Requests__c>();
         
+        for(quoteRequestInvoke request : quoteRequests){
+            
+            salesOpsRequests.add(request.salesOpsrequest);
+            
+            
+        }
         
         
         
         Database.executeBatch(new BatchQuoteRequest_Quote(salesOpsRequests));
         
     }
-
+    
 }
