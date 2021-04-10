@@ -23,7 +23,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     
     global Database.QueryLocator start(Database.BatchableContext bc) {
         
-        String qLines = 'SELECT ID, Amount__c, Volume_Discount_Schedule__c, Discount__c, Number_of_Months__c, Term_Discount_Schedule__c, Product__c, Product__r.ProductCode, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c,' +
+        String qLines = 'SELECT ID, Amount__c, Volume_Discount_Schedule__c, isSuite__c, Discount__c, Number_of_Months__c, Term_Discount_Schedule__c, Product__c, Product__r.ProductCode, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c,' +
             'Sales_Ops_Request__r.id, Product__r.SBQQ__SubscriptionPricing__c, Sales_Ops_Request__r.Price_Book__c FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
         
         return Database.getQueryLocator(qLines);
@@ -352,21 +352,23 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
             SBQQ.TriggerControl.disable();
             
             
-            Decimal volumeDiscount;
-            Decimal termDiscount;
+            Decimal volumeDiscount = 0;
+            Decimal termDiscount = 0;
             
             
             for(QLine__c qLine : scope){
                 
+                
+                
                 SBQQ__QuoteLine__c qL = new SBQQ__QuoteLine__c();
                 
-                if(volumeDiscountScheduleList.size() > 0){
+                if(volumeDiscountScheduleList.size() > 0 && qLine.isSuite__c == FALSE){
                     
                     volumeDiscount = calculateVolumeDiscount(qLine, volumeDiscountScheduleList, listPriceMap);
                     
                 }
                 
-                if(termDiscountScheduleList.size() > 0){
+                if(termDiscountScheduleList.size() > 0 && qLine.isSuite__c == FALSE){
                     
                     termDiscount = calculateTermDiscount(qLine, termDiscountScheduleList, listPriceMap);
                     
@@ -378,7 +380,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                 Decimal unitPrice = listPriceMap.get(qLine.Pricebook_and_Product__c) - volumeDiscount - termDiscount;
                 
                 
-                If(qLine.Product__r.SBQQ__SubscriptionPricing__c == 'Fixed Price'){
+                If(qLine.Product__r.SBQQ__SubscriptionPricing__c == 'Fixed Price' && qLine.isSuite__c == FALSE){
                     
                     ql.SBQQ__Quantity__c = (qLine.Amount__c / unitPrice).round(System.roundingMode.CEILING);
                     
@@ -405,8 +407,16 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                 ql.SBQQ__Quote__c = quoteSalesOpsRequestMap.get(qLine.Sales_Ops_Request__r.id);
                 ql.Sales_Discount__c = qLine.Discount__c;
                 
+                if(qLine.isSuite__c == TRUE){
+                    
+                    ql.Is_Suite__c = TRUE;
+                }
+
+                
                 
                 quoteLineList.add(ql);
+                
+                
                 
                 
             }
@@ -442,8 +452,11 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         
         for(SBQQ__QuoteLine__c ql: quoteLineList){
             
+            system.debug('qL.ProductCode__c: '+ qL.ProductCode__c);
+            system.debug('qL.Is_Suite__c: '+ qL.Is_Suite__c);
             
-            if(qL.ProductCode__c == 'GG-STE' || qL.ProductCode__c == 'GG-SCO' || qL.ProductCode__c == 'GG-STW'){
+            
+            if(qL.Is_Suite__c == TRUE){
                 
                 suiteQuoteLines.add(ql);
                 
