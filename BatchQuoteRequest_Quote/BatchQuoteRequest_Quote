@@ -3,7 +3,6 @@ global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Dat
     
     List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
     
-    //List<Sales_Ops_Requests__c> requestsForUpdate = new List<Sales_Ops_Requests__c>();
     
     List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
     
@@ -100,9 +99,10 @@ global class BatchQuoteRequest_Quote implements Database.Batchable<SObject>, Dat
         
         system.debug('quoteSalesOpsRequestMap: '+ quoteSalesOpsRequestMap);
         
-        
-        
-        Database.executeBatch(new BatchQuoteRequest_QuoteLines(requests, quoteSalesOpsRequestMap, quoteList));
+        if(!Test.isRunningTest()){
+            
+            Database.executeBatch(new BatchQuoteRequest_QuoteLines(requests, quoteSalesOpsRequestMap, quoteList));
+        }
         
         
     }
