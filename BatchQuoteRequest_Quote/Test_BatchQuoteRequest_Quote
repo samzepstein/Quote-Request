@@ -5,6 +5,8 @@ public class Test_BatchQuoteRequest_Quote {
     @testSetup
     public static void setupTests(){
         
+        test.startTest();
+        
         
         ID stdPricebook = Test.getStandardPricebookId();
         
@@ -26,6 +28,20 @@ public class Test_BatchQuoteRequest_Quote {
         
         insert oppty2;
         
+        //test indirect opp for error
+        Opportunity oppty = new Opportunity();
+        oppty.Name = 'Test oppty';
+        oppty.Type = 'New';
+        oppty.AccountId = testAccount.Id;
+        oppty.QuotePrimaryPartner__c =  testAccount.Id;
+        oppty.StageName = 'Closing';
+        oppty.CloseDate = System.today();
+        oppty.Channel__c = 'Indirect';
+        oppty.Manually_Remove_From_Analysis__c = TRUE;
+        oppty2.Pricebook2Id = stdPricebook;
+        
+        insert oppty;
+        
         Sales_Ops_Requests__c request = new Sales_Ops_Requests__c();
         
         request.Name = 'Test Quote Req';
@@ -36,6 +52,19 @@ public class Test_BatchQuoteRequest_Quote {
         
         insert request;
         
+        Sales_Ops_Requests__c request2 = new Sales_Ops_Requests__c();
+        
+        request2.Name = 'Test Quote Req 2';
+        request2.OPPORTUNITY__c = oppty.id;
+        request2.Primary_Account__c = testAccount.id;
+        request2.Price_Book__c = stdPricebook;
+        request2.Request_Subject__c = 'Test Quote Req 2';
+        
+        
+        insert request2;
+        
+        test.stopTest();
+        
         
     }
     
@@ -43,7 +72,9 @@ public class Test_BatchQuoteRequest_Quote {
     
     public static testMethod void BatchQuoteRequestTest(){
         
-        
+        test.startTest();
+            
+            
         List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
         
         Sales_Ops_Requests__c request = [SELECT ID, OPPORTUNITY__c, Primary_Account__c, OPPORTUNITY__r.Pricebook2Id FROM Sales_Ops_Requests__c WHERE Name = 'Test Quote Req' LIMIT 1];
@@ -58,6 +89,35 @@ public class Test_BatchQuoteRequest_Quote {
             Database.executeBatch(new BatchQuoteRequest_Quote(requests));
             
         }
+        
+        test.stopTest();
+        
+        
+        
+    }
+    
+    
+    public static testMethod void BatchQuoteRequestTestError(){
+        
+        test.startTest();
+        
+        
+        List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+        
+        Sales_Ops_Requests__c request = [SELECT ID, OPPORTUNITY__c, Primary_Account__c, OPPORTUNITY__r.Pricebook2Id FROM Sales_Ops_Requests__c WHERE Name = 'Test Quote Req 2' LIMIT 1];
+        
+        requests.add(request);
+        
+        system.debug('requests: '+ requests);
+        
+        
+        If(requests != null){
+            
+            Database.executeBatch(new BatchQuoteRequest_Quote(requests));
+            
+        }
+        
+        test.stopTest();
         
         
         
