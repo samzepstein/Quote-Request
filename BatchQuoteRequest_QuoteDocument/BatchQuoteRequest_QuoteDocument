@@ -6,13 +6,16 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
     
     Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
     
+    List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
     
     
     
-    global BatchQuoteRequest_QuoteDocument(Map<String,Id> quoteSalesOpsRequestMap, List<Sales_Ops_Requests__c> requests){
+    
+    global BatchQuoteRequest_QuoteDocument(Map<String,Id> quoteSalesOpsRequestMap, List<Sales_Ops_Requests__c> requests, List<SBQQ__Quote__c> quoteList){
         
         this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
         this.requests = requests;
+        this.quoteList = quoteList;
         
     }
     
@@ -38,6 +41,15 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
     
     
     global void execute(Database.BatchableContext bc, List<Sales_Ops_Requests__c> scope){
+        
+        
+        for(SBQQ__Quote__c quote : quoteList){
+            
+            quote.Recalculate__c = FALSE;
+            
+        }
+        
+        update quoteList;
         
         
         List<SBQQ__QuoteDocument__c> quoteDocList = new List<SBQQ__QuoteDocument__c>();
@@ -70,7 +82,7 @@ global class BatchQuoteRequest_QuoteDocument implements Database.Batchable<SObje
                 
                 
             }
-           
+            
             QuoteDocGenerator.createNew(quoteDocRequestList);
             
         }
