@@ -4,7 +4,6 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     
     List<SBQQ__QuoteLine__c> quoteLineList = new List<SBQQ__QuoteLine__c>();
     
-    List<SBQQ__QuoteLine__c> suiteQuoteLines = new List<SBQQ__QuoteLine__c>();
     
     Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
     
@@ -23,145 +22,11 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
     
     global Database.QueryLocator start(Database.BatchableContext bc) {
         
-        String qLines = 'SELECT ID, Amount__c, Volume_Discount_Schedule__c, isSuite__c, Discount__c, Number_of_Months__c, Term_Discount_Schedule__c, Product__c, Product__r.ProductCode, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c,' +
+        String qLines = 'SELECT ID, Amount__c, Volume_Discount_Schedule__c, Discount__c, Number_of_Months__c, Term_Discount_Schedule__c, Product__c, Product__r.ProductCode, Product__r.Family, Quantity__c, Start_Date__c, End_Date__c, Pricebook_and_Product__c,' +
             'Sales_Ops_Request__r.id, Product__r.SBQQ__SubscriptionPricing__c, Sales_Ops_Request__r.Price_Book__c FROM QLine__c WHERE Sales_Ops_Request__c in :requests';
         
         return Database.getQueryLocator(qLines);
     }
-    
-    //add term discount (excludes pear deck) - use Number of Months Fields
-    //create two seperate methods for getting volume disc. amount and term disc. amount 
-    //pass in map of discount tiers from the term discount schedule using the term discount field on QLine
-    
-    
-    global Decimal calculateTermDiscount(QLine__c qLine, List<ID> termDiscountScheduleList, Map<String,Decimal> listPriceMap){
-        
-        
-        List<SBQQ__DiscountTier__c > termDiscountTierList = [SELECT ID, Name, SBQQ__Schedule__r.id, SBQQ__Discount__c, SBQQ__DiscountAmount__c, SBQQ__LowerBound__c, SBQQ__UpperBound__c
-                                                               FROM SBQQ__DiscountTier__c 
-                                                               WHERE SBQQ__Schedule__c in :termDiscountScheduleList];
-        
-        
-        Map<Id,List<SBQQ__DiscountTier__c>> termDiscountScheduleTierMap = new Map<Id,List<SBQQ__DiscountTier__c>>();
-        
-        
-        
-        
-        Map<Id,Decimal> termDiscountTierMap = new Map<Id,Decimal>();
-        
-        for(SBQQ__DiscountTier__c dt : termDiscountTierList){
-            
-            Id discountScheduleId = dt.SBQQ__Schedule__r.id;
-            
-            
-            system.debug('discountScheduleId: '+ discountScheduleId);
-            
-            
-            List<SBQQ__DiscountTier__c> termDisTierList = termDiscountScheduleTierMap.containsKey(discountScheduleId) ? termDiscountScheduleTierMap.get(discountScheduleId) : new List<SBQQ__DiscountTier__c>();
-            
-            
-            system.debug('termDisTierList: '+ termDisTierList);
-            
-            termDiscountTierMap.put(dt.id, dt.SBQQ__Discount__c);
-            
-            termDisTierList.add(dt);
-            
-            
-            termDiscountScheduleTierMap.put(discountScheduleId, termDisTierList);
-            
-        }
-        
-        
-        
-        
-        
-        system.debug('termDiscountTierList: '+ termDiscountTierList);
-        
-        //Key: DiscountSchedule Value: Discount Tiers
-        system.debug('termDiscountScheduleTierMap: '+ termDiscountScheduleTierMap);
-        
-        //Key: Discount Tier Value: discount %
-        system.debug('termDiscountTierMap: '+ termDiscountTierMap);
-        
-        
-        
-        Map<ID,SBQQ__DiscountTier__c> qlDiscMap = new Map<ID,SBQQ__DiscountTier__c>();
-        
-        
-        Decimal termDisc;
-        
-        
-        
-        
-        //convert quantity to integer and round up
-        //Decimal quantityDec = (qLine.Amount__c / listPriceMap.get(qLine.Pricebook_and_Product__c)).round(System.roundingMode.CEILING);
-        
-        Decimal termLength = qLine.Number_of_Months__c;
-
-        Decimal unitPrice = listPriceMap.get(qLine.Pricebook_and_Product__c);
-        
-        system.debug('termLength: '+ termLength);
-        
-        
-        system.debug('unitPrice: '+ unitPrice);                               
-        
-        
-        
-        for(Id discountSchedule : termDiscountScheduleTierMap.keySet()){
-            
-            
-            system.debug('discountSchedule: '+ discountSchedule);
-            
-            system.debug('termDiscountScheduleTierMap.keySet(): '+ termDiscountScheduleTierMap.keySet());
-            
-            
-            List<SBQQ__DiscountTier__c > termDiscTierList = termDiscountScheduleTierMap.get(discountSchedule);
-            
-            system.debug('termDiscTierList: '+ termDiscTierList);
-            
-            for(SBQQ__DiscountTier__c dt : termDiscTierList){
-                
-                system.debug('dt: '+ dt);
-                
-                if((termLength >= dt.SBQQ__LowerBound__c && termLength < dt.SBQQ__UpperBound__c) || (termLength >= dt.SBQQ__LowerBound__c && dt.SBQQ__UpperBound__c == NULL)){
-                    
-
-                    system.debug('dt that meets criteria: '+ dt);
-                    
-                    system.debug('dt.SBQQ__Discount__c: '+ dt.SBQQ__Discount__c);
-                    
-                    termDisc = dt.SBQQ__Discount__c / 100;
-                    
-                    system.debug('termDisc before set scale : '+ termDisc);
-                    
-                    termDisc.setScale(2);
-                    
-                    break;
-                    
-                    
-                    
-                }
-                
-                
-            }
-            
-        }
-        
-        Decimal termDiscAmount = unitPrice * termDisc;
-        
-
-        
-        system.debug('unitPrice: '+ unitPrice);
-        system.debug('termDisc: '+ termDisc);
-
-        system.debug('termDiscAmount: '+ termDiscAmount);
-
-        
-        
-        return termDiscAmount;
-    }
-    
-    
     
     
     global Decimal calculateVolumeDiscount(QLine__c qLine, List<ID> volumeDiscountScheduleList, Map<String,Decimal> listPriceMap){
@@ -253,7 +118,7 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                 
                 if((quantityDec >= dt.SBQQ__LowerBound__c && quantityDec <= dt.SBQQ__UpperBound__c) || (quantityDec >= dt.SBQQ__LowerBound__c && dt.SBQQ__UpperBound__c == NULL)){
                     
-
+                    
                     
                     system.debug('dt that meets criteria: '+ dt);
                     
@@ -279,16 +144,16 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         Decimal volumeDiscAmount = unitPrice * volumeDisc;
         
         
-                
+        
         system.debug('unitPrice: '+ unitPrice);
         system.debug('volumeDisc: '+ volumeDisc);
-
-
+        
+        
         
         system.debug('volumeDiscAmount: '+ volumeDiscAmount);
         
         
-
+        
         
         
         return volumeDiscAmount;
@@ -308,7 +173,6 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
             
             List<ID> volumeDiscountScheduleList = new List<ID>();
             
-            List<ID> termDiscountScheduleList = new List<ID>();
             
             for(QLine__c qoLine : scope){
                 
@@ -318,7 +182,6 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                 
                 volumeDiscountScheduleList.add(qoLine.Volume_Discount_Schedule__c);
                 
-                termDiscountScheduleList.add(qoLine.Term_Discount_Schedule__c);
                 
             }
             
@@ -352,37 +215,25 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
             SBQQ.TriggerControl.disable();
             
             
-            Decimal volumeDiscount = 0;
-            Decimal termDiscount = 0;
+            Decimal volumeDiscount;
             
             
             for(QLine__c qLine : scope){
                 
-                
-                
                 SBQQ__QuoteLine__c qL = new SBQQ__QuoteLine__c();
                 
-                if(volumeDiscountScheduleList.size() > 0 && qLine.isSuite__c == FALSE){
+                
+                If(qLine.Product__r.Family == 'Pear Deck - Subscription' && qLine.Product__r.ProductCode != 'LMS-Access'){
                     
                     volumeDiscount = calculateVolumeDiscount(qLine, volumeDiscountScheduleList, listPriceMap);
                     
-                }
-                
-                if(termDiscountScheduleList.size() > 0 && qLine.isSuite__c == FALSE){
+                    Decimal unitPrice = listPriceMap.get(qLine.Pricebook_and_Product__c) - volumeDiscount;
                     
-                    termDiscount = calculateTermDiscount(qLine, termDiscountScheduleList, listPriceMap);
-                    
-                }
-                
-                
-                
-                
-                Decimal unitPrice = listPriceMap.get(qLine.Pricebook_and_Product__c) - volumeDiscount - termDiscount;
-                
-                
-                If(qLine.Product__r.SBQQ__SubscriptionPricing__c == 'Fixed Price' && qLine.isSuite__c == FALSE){
+                    system.debug('unitPrice: '+ unitPrice);
                     
                     ql.SBQQ__Quantity__c = (qLine.Amount__c / unitPrice).round(System.roundingMode.CEILING);
+                    ql.SBQQ__StartDate__c = qLine.Start_Date__c;
+                    ql.SBQQ__EndDate__c = qLine.End_Date__c;
                     
                 }
                 
@@ -393,30 +244,17 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
                 
                 
                 system.debug('volumeDiscount: '+ volumeDiscount);
-                system.debug('termDiscount: '+ termDiscount);
-                system.debug('unitPrice: '+ unitPrice);
                 system.debug('ql.SBQQ__Quantity__c: '+ ql.SBQQ__Quantity__c);
                 
                 
                 
-                
-                ql.SBQQ__StartDate__c = qLine.Start_Date__c;
-                ql.SBQQ__EndDate__c = qLine.End_Date__c;
                 ql.SBQQ__Product__c = qLine.Product__c;
                 ql.Deal_Type__c = 'New';
                 ql.SBQQ__Quote__c = quoteSalesOpsRequestMap.get(qLine.Sales_Ops_Request__r.id);
                 ql.Sales_Discount__c = qLine.Discount__c;
                 
-                if(qLine.isSuite__c == TRUE){
-                    
-                    ql.Is_Suite__c = TRUE;
-                }
-
-                
                 
                 quoteLineList.add(ql);
-                
-                
                 
                 
             }
@@ -450,47 +288,24 @@ global class  BatchQuoteRequest_QuoteLines implements Database.Batchable<SObject
         system.debug('quote lines created!');
         
         
-        for(SBQQ__QuoteLine__c ql: quoteLineList){
-            
-            system.debug('qL.ProductCode__c: '+ qL.ProductCode__c);
-            system.debug('qL.Is_Suite__c: '+ qL.Is_Suite__c);
-            
-            
-            if(qL.Is_Suite__c == TRUE){
-                
-                suiteQuoteLines.add(ql);
-                
-                
-            }
-            
-        } 
         
-        system.debug('suiteQuoteLines: '+ suiteQuoteLines);
-        
-        
-        if(suiteQuoteLines.size() > 0){
+        for(SBQQ__Quote__c quote : quoteList){
             
+            quote.Recalculate__c = TRUE;
             
-            Database.executeBatch(new BatchQuoteRequest_QuoteLineBundles(requests, quoteList, suiteQuoteLines, quoteSalesOpsRequestMap));
         }
         
-        else{
-            
-            for(SBQQ__Quote__c quote : quoteList){
-                
-                quote.Recalculate__c = TRUE;
-                
-            }
-            
-            update quoteList;
-            
-            
-            
-            Database.executeBatch(new BatchQuoteRequest_QuoteDocument(quoteSalesOpsRequestMap, requests));
-            
-        }
+        update quoteList;
+        
+        system.debug('quote lines created!');
+        
+        
+        
+        Database.executeBatch(new BatchQuoteRequest_RecalculateQuote(quoteSalesOpsRequestMap, requests, quoteList));
         
     }
+    
+    
     
     
     public static void errorHandler(String sub, String body){
