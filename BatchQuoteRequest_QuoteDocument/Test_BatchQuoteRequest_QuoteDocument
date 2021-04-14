@@ -82,12 +82,16 @@ public class Test_BatchQuoteRequest_QuoteDocument {
         
         List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
         
+        List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
+        
         
         Sales_Ops_Requests__c request = [SELECT ID, OPPORTUNITY__c, Primary_Account__c, OPPORTUNITY__r.Pricebook2Id, Price_Book__c FROM Sales_Ops_Requests__c WHERE Name = 'Test Quote Req' LIMIT 1];
         
         
         SBQQ__Quote__c quote = [SELECT ID, Sales_Ops_Request_ID__c FROM SBQQ__Quote__c LIMIT 1];
         
+        
+        quoteList.add(quote);
         
         Product2 prod = [SELECT Id FROM Product2 LIMIT 1];
         
@@ -112,7 +116,7 @@ public class Test_BatchQuoteRequest_QuoteDocument {
         
         requests.add(request);
         
-        Database.executeBatch(new BatchQuoteRequest_QuoteDocument(quoteSalesOpsRequestMap, requests));
+        Database.executeBatch(new BatchQuoteRequest_QuoteDocument(quoteSalesOpsRequestMap, requests, quoteList));
         
     }
     
