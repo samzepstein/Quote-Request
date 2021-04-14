@@ -1,0 +1,67 @@
+global class  BatchQuoteRequest_RecalculateQuote implements Database.Batchable<SObject>, Database.Stateful{
+    
+    List<Sales_Ops_Requests__c> requests = new List<Sales_Ops_Requests__c>();
+    
+    List<SBQQ__QuoteLine__c> quoteLineList = new List<SBQQ__QuoteLine__c>();
+    
+    
+    Map<String,Id> quoteSalesOpsRequestMap = new Map<String,Id>();
+    
+    
+    List<SBQQ__Quote__c> quoteList = new List<SBQQ__Quote__c>();
+    
+    
+    List<SBQQ__Quote__c> quoteListCalculated = new List<SBQQ__Quote__c>();
+    
+    
+    global BatchQuoteRequest_RecalculateQuote(Map<String,Id> quoteSalesOpsRequestMap, List<Sales_Ops_Requests__c> requests, List<SBQQ__Quote__c> quoteList){
+        this.requests = requests;
+        this.quoteSalesOpsRequestMap = quoteSalesOpsRequestMap;
+        this.quoteList = quoteList;
+        
+    }
+    
+    
+    
+    global Database.QueryLocator start(Database.BatchableContext bc) {
+        
+        String quotes = 'SELECT ID FROM SBQQ__Quote__c WHERE ID in :quoteList';
+        
+        return Database.getQueryLocator(quotes);
+    }
+    
+    
+    
+    global void execute(Database.BatchableContext bc, List<SBQQ__Quote__c> scope){
+        
+        
+        for(SBQQ__Quote__c quote : scope){
+            
+            
+            quote.Recalculate__c = FALSE;
+            
+            quoteListCalculated.add(quote);
+            
+            
+            
+        }
+        
+        update quoteListCalculated;
+        
+        
+    }
+    
+    
+    global void finish(Database.BatchableContext bc){
+        
+
+        
+        Database.executeBatch(new BatchQuoteRequest_QuoteDocument(quoteSalesOpsRequestMap, requests, quoteListCalculated));
+        
+    }
+    
+    
+    
+    
+    
+}
